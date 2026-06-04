@@ -1,0 +1,17 @@
+{
+  "name": "banking-e2e-playwright",
+  "version": "1.0.0",
+  "description": "End-to-end test suite for a banking web application - login, transfers, account statements",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:ui": "npx playwright test --project=chromium",
+    "test:api": "npx playwright test tests/api/",
+    "test:smoke": "npx playwright test --grep @smoke",
+    "test:regression": "npx playwright test --grep @regression",
+    "report": "npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.43.0",
+    "@types/node": "^20.12.7"
+  }
+}
