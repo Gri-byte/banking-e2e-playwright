@@ -11,16 +11,17 @@ export class DashboardPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.accountBalance = page.locator(".total-value").first();
-    this.transactionList = page.locator(".table-row");
-    this.transferButton = page.locator("[data-id='btn-transfer']");
+    this.accountBalance = page.locator(".balance-value").first();
+    this.transactionList = page.locator("table tbody tr");
+    this.transferButton = page.getByRole("link", { name: /make payment/i });
     this.logoutButton = page.locator(".logout-btn");
-    this.accountRows = page.locator(".account-row");
+    this.accountRows = page.locator("table tbody tr");
     this.userName = page.locator(".logged-user-name");
   }
 
   async assertDashboardLoaded(): Promise<void> {
-    await expect(this.page).toHaveURL(/.*index/);
+    // The demo app lands on /app.html (older builds used /index.html)
+    await expect(this.page).toHaveURL(/(app|index)\.html/);
     await expect(this.accountBalance).toBeVisible();
   }
 

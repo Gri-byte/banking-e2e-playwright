@@ -2,9 +2,25 @@ name: Banking E2E Tests
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, test]
   pull_request:
     branches: [main]
+  schedule:
+    # Full suite every day at 06:00 UTC (Mon–Fri)
+    - cron: "0 6 * * 1-5"
+    # Smoke-only every 6 hours on weekends
+    - cron: "0 */6 * * 0,6"
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Test suite to run"
+        required: false
+        default: "full"
+        type: choice
+        options:
+          - full
+          - smoke
+          - regression
 
 jobs:
   test:
@@ -18,11 +34,30 @@ jobs:
         run: npm ci
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-      - name: Run smoke tests
+
+      - name: Run full suite (scheduled weekday / push)
+        if: github.event_name != 'workflow_dispatch' && github.event.schedule != '0 */6 * * 0,6'
+        run: npm test -- --grep "@smoke|@regression"
+
+      - name: Run smoke suite (scheduled weekend)
+        if: github.event.schedule == '0 */6 * * 0,6'
         run: npm run test:smoke
+
+      - name: Run suite (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event.inputs.suite }}" = "smoke" ]; then
+            npm run test:smoke
+          elif [ "${{ github.event.inputs.suite }}" = "regression" ]; then
+            npm run test:regression
+          else
+            npm test -- --grep "@smoke|@regression"
+          fi
+
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
+          retention-days: 30
