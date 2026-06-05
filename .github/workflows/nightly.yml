@@ -1,0 +1,70 @@
+name: Nightly Full Regression
+
+on:
+  schedule:
+    # Every night at 02:00 UTC (Mon–Sun)
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  regression:
+    name: "Regression · ${{ matrix.project }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.project }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps ${{ matrix.project }}
+
+      - name: Run full regression suite
+        run: npx playwright test --grep "@regression" --project=${{ matrix.project }}
+        env:
+          BASE_URL: ${{ vars.BASE_URL || 'https://demo.applitools.com' }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME || 'testuser' }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD || 'testpassword' }}
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-report-${{ matrix.project }}
+          path: playwright-report/
+          retention-days: 60
+
+  notify:
+    name: Notify result
+    needs: regression
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post Slack summary
+        if: ${{ vars.SLACK_WEBHOOK_URL != '' }}
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "${{ needs.regression.result == 'success' && ':white_check_mark:' || ':x:' }} *Nightly Regression* — `${{ needs.regression.result }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
