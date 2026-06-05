@@ -8,6 +8,8 @@
     "test:api": "npx playwright test tests/api/",
     "test:smoke": "npx playwright test --grep @smoke",
     "test:regression": "npx playwright test --grep @regression",
+    "test:headed": "npx playwright test tests/ui --headed",
+    "test:interactive": "npx playwright test tests/ui --ui",
     "report": "npx playwright show-report"
   },
   "devDependencies": {

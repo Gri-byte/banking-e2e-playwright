@@ -14,7 +14,7 @@ export class LoginPage {
     this.passwordInput = page.locator("#password");
     this.loginButton = page.locator("#log-in");
     this.errorMessage = page.locator(".alert-warning");
-    this.rememberMeCheckbox = page.locator("#remember-me");
+    this.rememberMeCheckbox = page.locator("input[type='checkbox'].form-check-input");
   }
 
   async goto(): Promise<void> {

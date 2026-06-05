@@ -46,6 +46,28 @@ npm test                    # full suite
 npm run report              # open HTML report
 ```
 
+### 🖥️ Running with a visible browser
+
+```bash
+npm run test:headed         # run the UI suite with a visible Chromium window
+npm run test:interactive    # open Playwright's interactive UI mode (timeline + watch)
+```
+
+> `test:interactive` launches a GUI app that stays open until you close it.
+
+## 📜 Available Scripts
+
+| Script | Description |
+| --- | --- |
+| `npm test` | Full suite (UI + API) |
+| `npm run test:ui` | UI tests on the chromium project |
+| `npm run test:api` | API tests only |
+| `npm run test:smoke` | Tests tagged `@smoke` |
+| `npm run test:regression` | Tests tagged `@regression` |
+| `npm run test:headed` | UI suite with a visible browser |
+| `npm run test:interactive` | Playwright interactive UI mode |
+| `npm run report` | Open the last HTML report |
+
 ## 🏗️ Structure
 
 ```
