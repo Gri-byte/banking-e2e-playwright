@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # Full suite every day at 06:00 UTC (Mon–Fri)
+    # Full suite every weekday at 06:00 UTC
     - cron: "0 6 * * 1-5"
     # Smoke-only every 6 hours on weekends
     - cron: "0 */6 * * 0,6"
@@ -21,43 +21,132 @@ on:
           - full
           - smoke
           - regression
+      browser:
+        description: "Browser project"
+        required: false
+        default: "chromium"
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+          - all
 
 jobs:
   test:
+    name: "E2E · ${{ matrix.project }} · ${{ matrix.shard }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium]
+        shard: ["1/2", "2/2"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install browser system deps (cached hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # ── Scheduled weekday: full suite ──────────────────────────
+      - name: Run full suite (scheduled weekday)
+        if: github.event.schedule == '0 6 * * 1-5'
+        run: npx playwright test --project=${{ matrix.project }} --shard=${{ matrix.shard }}
+
+      # ── Scheduled weekend: smoke only ──────────────────────────
+      - name: Run smoke suite (scheduled weekend)
+        if: github.event.schedule == '0 */6 * * 0,6'
+        run: npx playwright test --grep "@smoke" --project=${{ matrix.project }} --shard=${{ matrix.shard }}
+
+      # ── Manual dispatch ─────────────────────────────────────────
+      - name: Run suite (manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          GREP=""
+          [ "${{ github.event.inputs.suite }}" = "smoke" ] && GREP="--grep @smoke"
+          [ "${{ github.event.inputs.suite }}" = "regression" ] && GREP="--grep @regression"
+          PROJECT="${{ github.event.inputs.browser }}"
+          [ "$PROJECT" = "all" ] && PROJECT="chromium"
+          npx playwright test $GREP --project=$PROJECT --shard=${{ matrix.shard }}
+
+      # ── Push / PR: smoke + regression ───────────────────────────
+      - name: Run full suite (push / PR)
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        run: npx playwright test --project=${{ matrix.project }} --shard=${{ matrix.shard }}
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.project }}-${{ strategy.job-index }}
+          path: playwright-report/
+          retention-days: 30
+
+  # ── Merge shard reports into one ────────────────────────────────
+  merge-reports:
+    name: Merge reports
+    needs: test
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Install dependencies
-        run: npm ci
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+          cache: "npm"
+      - run: npm ci
 
-      - name: Run full suite (scheduled weekday / push)
-        if: github.event_name != 'workflow_dispatch' && github.event.schedule != '0 */6 * * 0,6'
-        run: npm test -- --grep "@smoke|@regression"
+      - name: Download all shard reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-reports/
+          pattern: playwright-report-*
 
-      - name: Run smoke suite (scheduled weekend)
-        if: github.event.schedule == '0 */6 * * 0,6'
-        run: npm run test:smoke
+      - name: Merge into single HTML report
+        run: npx playwright merge-reports --reporter html ./all-reports
 
-      - name: Run suite (manual trigger)
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          if [ "${{ github.event.inputs.suite }}" = "smoke" ]; then
-            npm run test:smoke
-          elif [ "${{ github.event.inputs.suite }}" = "regression" ]; then
-            npm run test:regression
-          else
-            npm test -- --grep "@smoke|@regression"
-          fi
-
-      - name: Upload test report
-        if: always()
+      - name: Upload merged report
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-merged
           path: playwright-report/
           retention-days: 30
+
+  # ── Notify on failure ────────────────────────────────────────────
+  notify-failure:
+    name: Notify on failure
+    needs: test
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post Slack alert
+        if: ${{ vars.SLACK_WEBHOOK_URL != '' }}
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": ":x: *Banking E2E scheduled run FAILED* on `${{ github.ref_name }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ vars.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

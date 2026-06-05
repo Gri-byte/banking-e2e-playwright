@@ -1,10 +1,12 @@
 import { test as base } from "@playwright/test";
 import { LoginPage } from "../pages/LoginPage";
 import { DashboardPage } from "../pages/DashboardPage";
+import { TransactionPage } from "../pages/TransactionPage";
 
 type AuthFixtures = {
   loginPage: LoginPage;
   dashboardPage: DashboardPage;
+  transactionPage: TransactionPage;
   authenticatedPage: DashboardPage;
 };
 
@@ -17,6 +19,10 @@ export const test = base.extend<AuthFixtures>({
 
   dashboardPage: async ({ page }, use) => {
     await use(new DashboardPage(page));
+  },
+
+  transactionPage: async ({ page }, use) => {
+    await use(new TransactionPage(page));
   },
 
   // Pre-authenticated fixture — skips login UI for tests that don't need it
