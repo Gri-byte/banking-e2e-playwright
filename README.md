@@ -9,7 +9,29 @@ End-to-end test suite for a banking web application covering login flows, dashbo
 | Login UI | `@smoke` `@regression` | Credentials, edge cases, security |
 | Dashboard UI | `@smoke` `@regression` | Balance display, UI integrity |
 | Accounts API | `@smoke` | GET/POST account endpoints |
-| Transactions API | `@regression` | CRUD, response time, headers |
+| Transactions API | `@regression` | CRUD, filtering, response time, headers |
+
+## ⚠️ Notes on Negative Scenarios
+
+The UI tests run against the public demo at `demo.applitools.com`, which **accepts any
+credentials** and has no real authentication backend. Because of this, the negative login
+cases (empty fields, whitespace-only, SQL-injection-like input, overly long username) assert
+defensive behaviour — *"the app does not crash"* and *"does not reach `/index`"* — rather than
+a true authentication error.
+
+To exercise **real negative authentication** (e.g. asserting an error message on wrong
+credentials), point the suite at an app with server-side validation via `BASE_URL`, or mock
+the auth response with Playwright route interception. The Page Objects already expose
+`getErrorMessage()` / `errorMessage` for that purpose.
+
+## 🌐 Network Note
+
+Behind a corporate proxy with TLS interception you may see
+`unable to verify the first certificate`. Run with the system trust store:
+
+```bash
+NODE_OPTIONS=--use-system-ca npm test
+```
 
 ## 🚀 Quick Start
 

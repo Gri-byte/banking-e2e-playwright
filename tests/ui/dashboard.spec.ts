@@ -23,6 +23,25 @@ test.describe("@smoke Dashboard", () => {
     const balance = await dashboardPage.getBalanceText();
     expect(balance).not.toBe("");
   });
+
+  test("should show the transfer action on the dashboard", async ({
+    loginPage,
+    dashboardPage,
+  }) => {
+    await loginPage.login("testuser", "testpassword");
+    await dashboardPage.assertDashboardLoaded();
+    await expect(dashboardPage.transferButton).toBeVisible();
+  });
+
+  test("should list at least one account row", async ({
+    loginPage,
+    dashboardPage,
+  }) => {
+    await loginPage.login("testuser", "testpassword");
+    await dashboardPage.assertDashboardLoaded();
+    const count = await dashboardPage.getAccountCount();
+    expect(count).toBeGreaterThan(0);
+  });
 });
 
 test.describe("@regression Dashboard - UI Integrity", () => {
@@ -49,5 +68,35 @@ test.describe("@regression Dashboard - UI Integrity", () => {
   test("should have HTTPS in base URL", async ({ page }) => {
     const url = page.url();
     expect(url.startsWith("https://") || url.startsWith("http://localhost")).toBeTruthy();
+  });
+
+  test("should display a balance in a currency-like format", async ({
+    loginPage,
+    dashboardPage,
+  }) => {
+    await loginPage.login("testuser", "testpassword");
+    await dashboardPage.assertDashboardLoaded();
+    const balance = await dashboardPage.getBalanceText();
+    // Contains at least one digit (e.g. "$350,000" / "350.000")
+    expect(balance).toMatch(/\d/);
+  });
+
+  test("should not leak credentials in the page DOM after login", async ({
+    loginPage,
+    page,
+  }) => {
+    await loginPage.login("testuser", "testpassword");
+    const bodyText = await page.locator("body").textContent();
+    expect(bodyText).not.toContain("testpassword");
+  });
+
+  test("should redirect back to the login page after logout", async ({
+    loginPage,
+    dashboardPage,
+  }) => {
+    await loginPage.login("testuser", "testpassword");
+    await dashboardPage.assertDashboardLoaded();
+    await dashboardPage.logout();
+    await expect(loginPage.loginButton).toBeVisible();
   });
 });

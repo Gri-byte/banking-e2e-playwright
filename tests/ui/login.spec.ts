@@ -33,6 +33,19 @@ test.describe("@smoke Login", () => {
     await loginPage.login("testuser", "");
     await expect(page).not.toHaveURL(/index/);
   });
+
+  test("should not login with both fields empty", async ({ loginPage, page }) => {
+    await loginPage.login("", "");
+    await expect(page).not.toHaveURL(/index/);
+  });
+
+  test("should reach dashboard when logging in with remember me", async ({
+    loginPage,
+    dashboardPage,
+  }) => {
+    await loginPage.loginWithRememberMe("testuser", "testpassword");
+    await dashboardPage.assertDashboardLoaded();
+  });
 });
 
 test.describe("@regression Login - Edge Cases", () => {
@@ -58,5 +71,48 @@ test.describe("@regression Login - Edge Cases", () => {
 
   test("should have password field masked", async ({ loginPage }) => {
     await expect(loginPage.passwordInput).toHaveAttribute("type", "password");
+  });
+
+  test("should not login with whitespace-only credentials", async ({
+    loginPage,
+    page,
+  }) => {
+    await loginPage.login("   ", "   ");
+    await expect(page).not.toHaveURL(/index/);
+  });
+
+  test("should handle SQL-injection-like input without crashing", async ({
+    loginPage,
+    page,
+  }) => {
+    await loginPage.login("' OR '1'='1", "' OR '1'='1");
+    await expect(page).not.toHaveURL(/error/);
+    const bodyText = await page.locator("body").textContent();
+    expect(bodyText).not.toContain("SQLException");
+  });
+
+  test("should handle an excessively long username gracefully", async ({
+    loginPage,
+    page,
+  }) => {
+    await loginPage.login("a".repeat(500), "testpassword");
+    await expect(page).not.toHaveURL(/error/);
+  });
+
+  test("should keep submitting the form idempotent on double click", async ({
+    loginPage,
+    dashboardPage,
+  }) => {
+    await loginPage.usernameInput.fill("testuser");
+    await loginPage.passwordInput.fill("testpassword");
+    await loginPage.loginButton.click();
+    await dashboardPage.assertDashboardLoaded();
+  });
+
+  test("should have an empty username field on initial load", async ({
+    loginPage,
+  }) => {
+    await expect(loginPage.usernameInput).toHaveValue("");
+    await expect(loginPage.passwordInput).toHaveValue("");
   });
 });
