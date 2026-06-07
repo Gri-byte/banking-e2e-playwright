@@ -94,12 +94,12 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'pull_request'
         run: npx playwright test --project=${{ matrix.project }} --shard=${{ matrix.shard }}
 
-      - name: Upload test report
+      - name: Upload blob report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ matrix.project }}-${{ strategy.job-index }}
-          path: playwright-report/
+          name: blob-report-${{ matrix.project }}-${{ strategy.job-index }}
+          path: blob-report/
           retention-days: 30
 
   # ── Merge shard reports into one ────────────────────────────────
@@ -120,7 +120,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: all-reports/
-          pattern: playwright-report-*
+          pattern: blob-report-*
+          merge-multiple: true
 
       - name: Merge into single HTML report
         run: npx playwright merge-reports --reporter html ./all-reports
