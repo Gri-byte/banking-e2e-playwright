@@ -32,6 +32,17 @@ on:
           - webkit
           - all
 
+# Pages necesita estos permisos para que el deploy pueda publicar
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Evita deploys concurrentes pisándose entre sí
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   test:
     name: "E2E · ${{ matrix.project }} · ${{ matrix.shard }}"
@@ -126,12 +137,33 @@ jobs:
       - name: Merge into single HTML report
         run: npx playwright merge-reports --reporter html ./all-reports
 
-      - name: Upload merged report
+      - name: Upload merged report (descargable)
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-merged
           path: playwright-report/
           retention-days: 30
+
+      # Sube el HTML en el formato que Pages necesita
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: playwright-report/
+
+  # ── Publicar el reporte en GitHub Pages ─────────────────────────
+  deploy-pages:
+    name: Deploy report to Pages
+    needs: merge-reports
+    # Solo en push (los PR desde forks no pueden publicar en Pages)
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   # ── Notify on failure ────────────────────────────────────────────
   notify-failure:
