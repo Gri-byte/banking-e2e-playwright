@@ -1,63 +1,54 @@
-name: Playwright Tests
-on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+import { defineConfig, devices } from "@playwright/test";
 
-jobs:
-  test:
-    name: Test (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
-    timeout-minutes: 60
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shardIndex: [1, 2, 3, 4]
-        shardTotal: [4]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm ci
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
-      - name: Run Playwright tests
-        run: npx playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-      - name: Upload blob report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: blob-report-${{ matrix.shardIndex }}
-          path: blob-report
-          retention-days: 1
+const isCI = !!process.env.CI;
 
-  merge-reports:
-    name: Merge reports
-    if: ${{ !cancelled() }}
-    needs: [test]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm ci
-      - name: Download blob reports from GitHub Actions Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: all-reports
-          pattern: blob-report-*
-          merge-multiple: true
-      - name: Merge into HTML Report
-        run: npx playwright merge-reports --reporter html ./all-reports
-      - name: Upload HTML report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: html-report--attempt-${{ github.run_attempt }}
-          path: playwright-report
-          retention-days: 14
+export default defineConfig({
+  testDir: "./tests",
+  fullyParallel: false,
+  forbidOnly: isCI,
+  retries: isCI ? 2 : 0,
+  workers: isCI ? 2 : undefined,
+  timeout: 30_000,
+  expect: { timeout: 8_000 },
+
+  reporter: isCI
+    ? [["blob"], ["github"]]
+    : [["html", { open: "never" }], ["list"]],
+
+  use: {
+    baseURL: process.env.BASE_URL || "https://demo.applitools.com",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
+    actionTimeout: 10_000,
+    navigationTimeout: 15_000,
+  },
+
+  projects: [
+    // ── Desktop browsers ──────────────────────────────────────────
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
+    },
+
+    // ── Mobile viewports ─────────────────────────────────────────
+    {
+      name: "mobile-chrome",
+      use: { ...devices["Pixel 5"] },
+      testMatch: "**/navigation.spec.ts",
+    },
+    {
+      name: "mobile-safari",
+      use: { ...devices["iPhone 13"] },
+      testMatch: "**/navigation.spec.ts",
+    },
+  ],
+});
