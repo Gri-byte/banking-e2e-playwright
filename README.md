@@ -1,6 +1,7 @@
 # 🏦 Banking App E2E Test Suite — Playwright + TypeScript
 
-End-to-end test suite for a banking web application covering login flows, dashboard validation, and REST API testing. Built with Page Object Model and custom fixtures.
+End-to-end test suite for a banking web application covering login flows, dashboard validation, and REST API testing. 
+Built with Page Object Model and custom fixtures.
 
 ## 🧪 Test Coverage
 

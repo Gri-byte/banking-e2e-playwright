@@ -12,7 +12,7 @@ test.describe("@smoke Login", () => {
 
   test("should login successfully with valid credentials", async ({
     loginPage,
-    dashboardPage,
+    dashboardPage
   }) => {
     await loginPage.login("testuser", "testpassword");
     await dashboardPage.assertDashboardLoaded();
