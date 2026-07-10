@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(git checkout *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "PowerShell(node -e \"try { const yaml = require\\('yaml'\\); yaml.parse\\(require\\('fs'\\).readFileSync\\('.github/workflows/playwright.yml','utf8'\\)\\); console.log\\('YAML OK'\\) } catch\\(e\\) { try { const y2 = require\\('js-yaml'\\); y2.load\\(require\\('fs'\\).readFileSync\\('.github/workflows/playwright.yml','utf8'\\)\\); console.log\\('YAML OK \\(js-yaml\\)'\\) } catch\\(e2\\) { console.log\\('ERR: ' + e2.message\\) } }\")",
+      "PowerShell(npx --yes js-yaml .github/workflows/playwright.yml > $null)",
+      "PowerShell(if \\($?\\) { \"YAML OK\" })"
     ]
   }
 }

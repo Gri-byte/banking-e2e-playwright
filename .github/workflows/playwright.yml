@@ -114,7 +114,7 @@ jobs:
           retention-days: 30
 
   # ── Merge shard reports into one ────────────────────────────────
-   merge-reports:
+  merge-reports:
     name: Merge reports
     needs: test
     if: always()
