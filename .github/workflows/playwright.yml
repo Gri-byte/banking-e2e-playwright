@@ -114,7 +114,7 @@ jobs:
           retention-days: 30
 
   # ── Merge shard reports into one ────────────────────────────────
-  merge-reports:
+   merge-reports:
     name: Merge reports
     needs: test
     if: always()
@@ -135,9 +135,11 @@ jobs:
           merge-multiple: true
 
       - name: Merge into single HTML report
+        if: hashFiles('all-reports/**') != ''
         run: npx playwright merge-reports --reporter html ./all-reports
 
       - name: Upload merged report (descargable)
+        if: hashFiles('playwright-report/**') != ''
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-merged
@@ -146,6 +148,7 @@ jobs:
 
       # Sube el HTML en el formato que Pages necesita
       - name: Upload Pages artifact
+        if: hashFiles('playwright-report/**') != ''
         uses: actions/upload-pages-artifact@v3
         with:
           path: playwright-report/
